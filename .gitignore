@@ -1,0 +1,20 @@
+# Build outputs
+**/bin/
+**/obj/
+*.apk
+
+# Artifacts directory (step markers, VM images, caches, etc.)
+artifacts/
+
+# IDE
+.idea/
+.vs/
+*.suo
+*.user
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
