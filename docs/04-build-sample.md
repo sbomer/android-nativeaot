@@ -24,7 +24,7 @@ Build time is typically 2-5 minutes depending on your hardware.
 After a successful build, the signed APK is at:
 
 ```text
-sample/bin/Release/net9.0-android/publish/com.example.nativeaot-Signed.apk
+sample/bin/Release/net10.0-android/publish/com.example.nativeaot-Signed.apk
 ```
 
 ## Install on Device (Optional)
@@ -54,6 +54,38 @@ else
     echo "FAILED: APK not found"
     exit 1
 fi
+```
+
+## Run in Emulator
+
+First, install the emulator and create an AVD (Android Virtual Device):
+
+<!-- step: emulator-setup -->
+```bash
+sdkmanager --install "emulator" "system-images;android-36;google_apis;x86_64"
+echo "no" | avdmanager create avd -n test -k "system-images;android-36;google_apis;x86_64" --force
+```
+
+Start the emulator in the background and wait for it to boot:
+
+<!-- step: emulator-start -->
+```bash
+nohup emulator -avd test -no-window -no-audio > /dev/null 2>&1 &
+adb wait-for-device
+adb shell 'while [[ -z $(getprop sys.boot_completed) ]]; do sleep 1; done'
+echo "Emulator ready"
+```
+
+Install and launch the app:
+
+<!-- step: run-app -->
+```bash
+cd sample
+APK=$(find bin/Release -name "*-Signed.apk" -type f | head -1)
+adb install -r "$APK"
+adb shell am start -n com.example.nativeaot/.MainActivity
+sleep 2
+adb shell dumpsys activity activities | grep -A5 com.example.nativeaot
 ```
 
 ## Troubleshooting
