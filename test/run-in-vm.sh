@@ -42,18 +42,21 @@ log_error()   { echo -e "${RED}[VM]${NC} $1"; }
 # Parse arguments
 FORCE=false
 LIST_ONLY=false
+KEEP_VM=false
 INNER_ARGS=()
 
 while [[ $# -gt 0 ]]; do
     case $1 in
         --force)  FORCE=true; INNER_ARGS+=("--force"); shift ;;
         --list)   LIST_ONLY=true; INNER_ARGS+=("--list"); shift ;;
+        --keep)   KEEP_VM=true; shift ;;
         --help|-h)
             echo "Usage: $0 [options]"
             echo ""
             echo "Options:"
             echo "  --force   Fresh VM and re-run all steps"
             echo "  --list    List all steps without running"
+            echo "  --keep    Keep VM running after tests (default: stop)"
             echo "  --help    Show this help"
             exit 0
             ;;
@@ -251,7 +254,13 @@ main() {
     if run_test; then
         TEST_END=$(date +%s)
         log_success "All tests passed! ($((TEST_END - TEST_START))s)"
-        log_info "VM kept running. SSH: ssh -p $VM_SSH_PORT ubuntu@localhost"
+        if [[ "$KEEP_VM" == "true" ]]; then
+            log_info "VM kept running. SSH: ssh -p $VM_SSH_PORT ubuntu@localhost"
+        else
+            log_info "Stopping VM..."
+            $VIRSH shutdown "$VM_NAME" 2>/dev/null || true
+            log_info "VM stopped. Disk preserved for fast restart."
+        fi
         exit 0
     else
         log_error "Tests failed!"
