@@ -4,7 +4,7 @@ Build native Android applications using .NET NativeAOT on Ubuntu.
 
 ## Quick Start
 
-**On Ubuntu 24.04**, follow the docs step by step:
+**On Ubuntu 25.10**, follow the docs step by step:
 
 1. [Prerequisites](docs/01-prerequisites.md)
 2. [Android SDK Setup](docs/02-android-sdk.md)
@@ -21,7 +21,7 @@ Or run all steps at once:
 
 | Component | Version |
 |-----------|---------|
-| Ubuntu | 24.04 LTS |
+| Ubuntu | 25.10 |
 | .NET SDK | 9.0 |
 | Android SDK Platform | 35 |
 | Android NDK | 27.2.12479018 |

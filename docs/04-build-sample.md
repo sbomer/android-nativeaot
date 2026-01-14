@@ -70,9 +70,35 @@ Start the emulator in the background and wait for it to boot:
 
 <!-- step: emulator-start -->
 ```bash
-nohup emulator -avd test -no-window -no-audio > /dev/null 2>&1 &
-adb wait-for-device
-adb shell 'while [[ -z $(getprop sys.boot_completed) ]]; do sleep 1; done'
+adb start-server
+
+# Pick a fixed port/serial so we don't accidentally wait on a different device.
+export ANDROID_SERIAL=emulator-5554
+
+# Capture emulator output so a failed start doesn't look like a hang.
+EMULATOR_LOG="${TMPDIR:-/tmp}/emulator-${ANDROID_SERIAL}.log"
+nohup emulator -avd test -port 5554 -no-audio -no-window \
+    -no-snapshot -wipe-data >"$EMULATOR_LOG" 2>&1 &
+
+adb -s "$ANDROID_SERIAL" wait-for-device
+
+# Wait up to 5 minutes for Android to finish booting.
+booted=false
+for i in $(seq 1 300); do
+    if adb -s "$ANDROID_SERIAL" shell getprop sys.boot_completed | tr -d '\r' | grep -q '^1$'; then
+        booted=true
+        break
+    fi
+    sleep 1
+done
+
+if [[ "$booted" != "true" ]]; then
+    echo "Timed out waiting for emulator to boot ($ANDROID_SERIAL)"
+    echo "Last emulator log lines: $EMULATOR_LOG"
+    tail -n 200 "$EMULATOR_LOG" || true
+    false
+fi
+
 echo "Emulator ready"
 ```
 

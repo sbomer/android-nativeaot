@@ -4,7 +4,7 @@ This guide covers the system requirements for building NativeAOT Android applica
 
 ## System Requirements
 
-- **Ubuntu 24.04 LTS**
+- **Ubuntu 25.10**
 - At least 16 GB RAM (NativeAOT compilation is memory-intensive)
 - 30 GB free disk space
 
@@ -12,6 +12,12 @@ This guide covers the system requirements for building NativeAOT Android applica
 
 <!-- step: prerequisites -->
 ```bash
+# Wait for any background apt processes (e.g., cloud-init) to finish
+while sudo fuser /var/lib/apt/lists/lock >/dev/null 2>&1; do
+    echo "Waiting for apt lock..."
+    sleep 5
+done
+
 sudo apt-get update
 sudo apt-get install -y \
     build-essential \

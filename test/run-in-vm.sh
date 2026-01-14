@@ -13,10 +13,10 @@ REPO_ROOT="$(dirname "$SCRIPT_DIR")"
 ARTIFACTS_DIR="$REPO_ROOT/artifacts"
 MARKER_DIR="$ARTIFACTS_DIR/step-markers"
 
-VM_NAME="nativeaot-test"
-VM_IMAGE_URL="https://cloud-images.ubuntu.com/noble/current/noble-server-cloudimg-amd64.img"
+VM_NAME="nativeaot-test-25.10"
+VM_IMAGE_URL="https://cloud-images.ubuntu.com/questing/current/questing-server-cloudimg-amd64.img"
 VM_IMAGE_DIR="$ARTIFACTS_DIR/vm/base-images"
-VM_IMAGE="$VM_IMAGE_DIR/ubuntu-24.04.img"
+VM_IMAGE="$VM_IMAGE_DIR/ubuntu-25.10.img"
 VM_DISK_DIR="$ARTIFACTS_DIR/vm/disks"
 VM_DISK="$VM_DISK_DIR/$VM_NAME.qcow2"
 VM_CLOUD_INIT_DIR="$ARTIFACTS_DIR/vm/cloud-init"
@@ -119,7 +119,7 @@ download_image() {
         return 0
     fi
     
-    log_info "Downloading Ubuntu 24.04 cloud image..."
+    log_info "Downloading Ubuntu 25.10 cloud image..."
     mkdir -p "$VM_IMAGE_DIR"
     wget -q --show-progress -O "$VM_IMAGE" "$VM_IMAGE_URL"
     log_success "Image downloaded"
@@ -148,6 +148,7 @@ users:
   - name: ubuntu
     sudo: ALL=(ALL) NOPASSWD:ALL
     shell: /bin/bash
+    groups: kvm
     ssh_authorized_keys:
       - $ssh_key
 
@@ -182,7 +183,7 @@ create_vm() {
         --vcpus "$VM_CPUS" \
         --disk "$VM_DISK" \
         --disk "$VM_CLOUD_INIT_DIR/cloud-init.img,device=cdrom" \
-        --os-variant ubuntu24.04 \
+        --os-variant ubuntu25.10 \
         --network none \
         --graphics none \
         --console pty,target_type=serial \
