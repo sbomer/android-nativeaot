@@ -28,6 +28,9 @@ VM_SSH_PORT="2222"  # Host port for SSH forwarding
 VIRSH="virsh --connect qemu:///session"
 VIRT_INSTALL="virt-install --connect qemu:///session"
 
+# SSH options for ephemeral VM (ignore host key changes)
+SSH_OPTS="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR"
+
 # Colors
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -102,7 +105,7 @@ wait_for_vm() {
     
     local attempts=60
     while [[ $attempts -gt 0 ]]; do
-        if ssh -q -o StrictHostKeyChecking=no -o ConnectTimeout=2 -p "$VM_SSH_PORT" ubuntu@localhost true 2>/dev/null; then
+        if ssh -q $SSH_OPTS -o ConnectTimeout=2 -p "$VM_SSH_PORT" ubuntu@localhost true 2>/dev/null; then
             log_success "VM accessible at localhost:$VM_SSH_PORT"
             return 0
         fi
@@ -211,13 +214,13 @@ destroy_vm() {
 # Run test in VM
 run_test() {
     log_info "Copying local repository to VM..."
-    rsync -az -e "ssh -o StrictHostKeyChecking=no -p $VM_SSH_PORT" \
+    rsync -az -e "ssh $SSH_OPTS -p $VM_SSH_PORT" \
         --exclude='.git' \
         --exclude='artifacts' \
         "$REPO_ROOT/" ubuntu@localhost:~/android-nativeaot/
 
     log_info "Running docs in VM..."
-    ssh -o StrictHostKeyChecking=no -p "$VM_SSH_PORT" ubuntu@localhost \
+    ssh $SSH_OPTS -p "$VM_SSH_PORT" ubuntu@localhost \
         "cd ~/android-nativeaot && chmod +x test/*.sh && ./test/run-docs.sh ${INNER_ARGS[*]:-}"
 }
 
