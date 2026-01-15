@@ -50,6 +50,22 @@ Or run all steps at once:
 ./test/run-docs.sh --reset      # Clear completion markers
 ```
 
+### Using a Local dotnet/android Build
+
+To test against a locally-built Android workload (from a clone of [dotnet/android](https://github.com/dotnet/android)):
+
+```bash
+# After running 'make prepare' in your dotnet/android clone
+./test/run-docs.sh --local-android=/path/to/dotnet/android
+```
+
+This will:
+- Use the local dotnet from `bin/{Release,Debug}/dotnet/dotnet`
+- Set `DOTNETSDK_WORKLOAD_MANIFEST_ROOTS` and `DOTNETSDK_WORKLOAD_PACK_ROOTS` to point to the local build
+- Skip the `dotnet-install` and `dotnet-workload` steps
+
+See [dotnet-local-sh.md](dotnet-local-sh.md) for details on how this works.
+
 ### In a Clean VM (Full Validation)
 
 ```bash
