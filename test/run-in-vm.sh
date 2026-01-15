@@ -107,6 +107,12 @@ wait_for_vm() {
     while [[ $attempts -gt 0 ]]; do
         if ssh -q $SSH_OPTS -o ConnectTimeout=2 -p "$VM_SSH_PORT" ubuntu@localhost true 2>/dev/null; then
             log_success "VM accessible at localhost:$VM_SSH_PORT"
+
+            # Wait for cloud-init to finish before running any commands
+            log_info "Waiting for cloud-init to complete..."
+            ssh $SSH_OPTS -p "$VM_SSH_PORT" ubuntu@localhost "cloud-init status --wait" >/dev/null 2>&1
+            log_success "Cloud-init complete"
+
             return 0
         fi
         

@@ -12,12 +12,6 @@ This guide covers the system requirements for building NativeAOT Android applica
 
 <!-- step: prerequisites -->
 ```bash
-# Wait for any background apt processes (e.g., cloud-init) to finish
-while sudo fuser /var/lib/apt/lists/lock >/dev/null 2>&1; do
-    echo "Waiting for apt lock..."
-    sleep 5
-done
-
 sudo apt-get update
 sudo apt-get install -y \
     build-essential \
