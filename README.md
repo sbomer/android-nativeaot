@@ -66,6 +66,10 @@ This will:
 
 See [dotnet-local-sh.md](dotnet-local-sh.md) for details on how this works.
 
+> **Note:** The sample currently targets `net11.0-android` for local builds.
+> TODO: Update the non-local scenario (docs/03-dotnet-setup.md) to use .NET 11 previews
+> once available, so both scenarios use the same TFM.
+
 ### In a Clean VM (Full Validation)
 
 ```bash

@@ -140,7 +140,7 @@ if [[ -n "$LOCAL_ANDROID_REPO" ]]; then
         echo "export DOTNETSDK_WORKLOAD_PACK_ROOTS=\"$LOCAL_LIB_DIR\""
     } >> "$ENV_FILE"
 
-    # Skip steps that install dotnet/workload from official sources
+    # Skip dotnet-install and dotnet-workload since the local build provides both
     SKIP_STEPS+=("dotnet-install" "dotnet-workload")
 
     log_info "Skipping steps: ${SKIP_STEPS[*]}"
