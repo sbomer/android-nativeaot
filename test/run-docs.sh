@@ -7,6 +7,7 @@ set -euo pipefail
 #   ./test/run-docs.sh                           # Incremental (skip completed steps)
 #   ./test/run-docs.sh --force                   # Re-run all steps
 #   ./test/run-docs.sh --list                    # Show all steps
+#   ./test/run-docs.sh --verbose                 # Show code blocks being executed
 #   ./test/run-docs.sh --local-android=/path     # Use local dotnet/android build
 #   ./test/run-docs.sh --env-file=/path          # Source additional environment setup
 
@@ -58,6 +59,7 @@ show_check_log() {
 # Parse arguments
 FORCE=false
 LIST_ONLY=false
+VERBOSE=false
 LOCAL_ANDROID_REPO=""
 EXTRA_ENV_FILE=""
 
@@ -65,6 +67,7 @@ while [[ $# -gt 0 ]]; do
     case $1 in
         --force)  FORCE=true; shift ;;
         --list)   LIST_ONLY=true; shift ;;
+        --verbose|-v) VERBOSE=true; shift ;;
         --local-android=*)
             LOCAL_ANDROID_REPO="${1#*=}"
             shift
@@ -87,6 +90,7 @@ while [[ $# -gt 0 ]]; do
             echo "Options:"
             echo "  --force                 Re-run all steps (ignore skip checks)"
             echo "  --list                  List all steps without running"
+            echo "  --verbose, -v           Show code blocks being executed"
             echo "  --local-android=PATH    Use local dotnet/android build instead of installed workload"
             echo "  --env-file=PATH         Source additional environment variables from file"
             echo "  --help                  Show this help"
@@ -318,10 +322,12 @@ run_step() {
 
     log_run "$step ($doc)"
 
-    # Show commands being run
-    echo -e "${GRAY}────────────────────────────────────────${NC}"
-    echo -e "${GRAY}${code}${NC}"
-    echo -e "${GRAY}────────────────────────────────────────${NC}"
+    # Show commands being run (only in verbose mode)
+    if [[ "$VERBOSE" == "true" ]]; then
+        echo -e "${GRAY}────────────────────────────────────────${NC}"
+        echo -e "${GRAY}${code}${NC}"
+        echo -e "${GRAY}────────────────────────────────────────${NC}"
+    fi
 
     # Run in subshell with env sourced
     if (

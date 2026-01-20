@@ -4,9 +4,10 @@ set -euo pipefail
 # run-in-vm.sh - Provision an Ubuntu VM and run docs inside it
 #
 # Usage:
-#   ./test/run-in-vm.sh          # Incremental (reuse VM if valid)
-#   ./test/run-in-vm.sh --force  # Fresh VM, run all steps
-#   ./test/run-in-vm.sh --list   # Show all steps
+#   ./test/run-in-vm.sh              # Incremental (reuse VM if valid)
+#   ./test/run-in-vm.sh --force      # Fresh VM, run all steps
+#   ./test/run-in-vm.sh --list       # Show all steps
+#   ./test/run-in-vm.sh --verbose    # Show code blocks being executed
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(dirname "$SCRIPT_DIR")"
@@ -65,19 +66,22 @@ show_check_log() {
 # Parse arguments
 FORCE=false
 LIST_ONLY=false
+VERBOSE=false
 INNER_ARGS=()
 
 while [[ $# -gt 0 ]]; do
     case $1 in
         --force)  FORCE=true; INNER_ARGS+=("--force"); shift ;;
         --list)   LIST_ONLY=true; INNER_ARGS+=("--list"); shift ;;
+        --verbose|-v) VERBOSE=true; INNER_ARGS+=("--verbose"); shift ;;
         --help|-h)
             echo "Usage: $0 [options]"
             echo ""
             echo "Options:"
-            echo "  --force   Fresh VM and re-run all steps"
-            echo "  --list    List all steps without running"
-            echo "  --help    Show this help"
+            echo "  --force       Fresh VM and re-run all steps"
+            echo "  --list        List all steps without running"
+            echo "  --verbose, -v Show code blocks being executed"
+            echo "  --help        Show this help"
             exit 0
             ;;
         *)

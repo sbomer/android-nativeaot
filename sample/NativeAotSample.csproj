@@ -9,7 +9,7 @@
     
     <!-- NativeAOT Configuration -->
     <PublishAot>true</PublishAot>
-    <RuntimeIdentifier>android-arm64</RuntimeIdentifier>
+    <RuntimeIdentifier>android-x64</RuntimeIdentifier>
     
     <!-- Optimize for size -->
     <OptimizationPreference>Size</OptimizationPreference>

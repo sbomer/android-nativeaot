@@ -72,11 +72,13 @@ Start the emulator in the background and wait for it to boot:
 ```bash
 export ANDROID_SERIAL=emulator-5554
 
-# Start emulator in background
-emulator -avd test -port 5554 -no-audio -no-window -no-snapshot-save -no-snapshot-load &
+# Start emulator only if not already running
+if ! adb devices 2>/dev/null | grep -q "$ANDROID_SERIAL"; then
+    emulator -avd test -port 5554 -no-audio -no-window -no-snapshot &
+    timeout 60 adb wait-for-device || { echo "Emulator failed to connect"; exit 1; }
+fi
 
-# Wait up to 60 seconds for emulator to boot
-timeout 60 adb wait-for-device || { echo "Emulator failed to connect"; exit 1; }
+# Wait for boot to complete
 timeout 60 adb shell 'while [ "$(getprop sys.boot_completed)" != "1" ]; do sleep 1; done' || { echo "Emulator failed to boot"; exit 1; }
 
 echo "Emulator ready"
@@ -88,7 +90,8 @@ Install the app:
 ```bash
 cd sample
 APK=$(find bin/Release -name "*-Signed.apk" -type f | head -1)
-adb install -r "$APK"
+adb uninstall com.example.nativeaot 2>/dev/null || true
+adb install "$APK"
 ```
 
 Launch and verify the app:
