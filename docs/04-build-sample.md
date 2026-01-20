@@ -24,7 +24,7 @@ Build time is typically 2-5 minutes depending on your hardware.
 After a successful build, the signed APK is at:
 
 ```text
-sample/bin/Release/net10.0-android/publish/com.example.nativeaot-Signed.apk
+sample/bin/Release/net11.0-android/android-x64/publish/com.example.nativeaot-Signed.apk
 ```
 
 ## Install on Device (Optional)
@@ -32,7 +32,7 @@ sample/bin/Release/net10.0-android/publish/com.example.nativeaot-Signed.apk
 If you have an Android device connected via USB or an emulator running:
 
 ```bash
-adb install -r bin/Release/net9.0-android/publish/*-Signed.apk
+adb install -r bin/Release/net11.0-android/android-x64/publish/*-Signed.apk
 ```
 
 Launch the app:

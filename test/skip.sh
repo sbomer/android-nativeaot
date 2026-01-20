@@ -100,8 +100,8 @@ skip_dotnet_install() {
         dotnet_path=$(command -v dotnet) || { log_check_fail "dotnet not found in PATH or DOTNET_ROOT"; return 1; }
     fi
     dotnet_version=$("$dotnet_path" --version 2>/dev/null) || { log_check_fail "dotnet --version failed"; return 1; }
-    [[ "$dotnet_version" == 10.0.102* ]] || {
-        log_check_fail "dotnet version $dotnet_version (expected 10.0.102)"
+    [[ "$dotnet_version" == 11.0.* ]] || {
+        log_check_fail "dotnet version $dotnet_version (expected 11.0.x)"
         return 1
     }
     log_check_ok "dotnet $dotnet_version ($dotnet_path)"
@@ -131,10 +131,11 @@ skip_dotnet_workload() {
     local workload_sdk_band
     workload_sdk_band=$(echo "$workload_info" | grep -oE 'SDK [0-9]+\.[0-9]+\.[0-9]+' | awk '{print $2}')
 
-    # Get current SDK version and extract feature band (e.g., "10.0.102" -> "10.0.100")
+    # Get current SDK version and extract feature band (e.g., "10.0.102" -> "10.0.100", "11.0.100-preview.1.xxx" -> "11.0.100")
     local sdk_version sdk_feature_band
     sdk_version=$("$dotnet_path" --version 2>/dev/null)
-    sdk_feature_band=$(echo "$sdk_version" | sed -E 's/([0-9]+\.[0-9]+\.)[0-9]+/\1100/')
+    # Extract major.minor.patch, strip any suffix (-preview, -rc, etc), then normalize patch to 100
+    sdk_feature_band=$(echo "$sdk_version" | sed -E 's/^([0-9]+\.[0-9]+\.[0-9]+).*/\1/' | sed -E 's/([0-9]+\.[0-9]+\.)[0-9]+/\1100/')
 
     if [[ "$workload_sdk_band" != "$sdk_feature_band" ]]; then
         log_check_fail "workload SDK band $workload_sdk_band != current SDK band $sdk_feature_band"
