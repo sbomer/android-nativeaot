@@ -157,6 +157,13 @@ skip_build() {
     }
     log_check_ok "signed APK exists: ${apk#$REPO_ROOT/}"
 
+    # Check build.log exists (contains verbose output including linker command)
+    [[ -f "$REPO_ROOT/sample/build.log" ]] || {
+        log_check_fail "build.log not found"
+        return 1
+    }
+    log_check_ok "build.log exists"
+
     return 0
 }
 
