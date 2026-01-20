@@ -95,6 +95,10 @@ skip_dotnet_install() {
     local dotnet_path dotnet_version
     dotnet_path=$(command -v dotnet) || { log_check_fail "dotnet not found in PATH"; return 1; }
     dotnet_version=$(dotnet --version 2>/dev/null) || { log_check_fail "dotnet --version failed"; return 1; }
+    [[ "$dotnet_version" == 10.0.102* ]] || {
+        log_check_fail "dotnet version $dotnet_version (expected 10.0.102)"
+        return 1
+    }
     log_check_ok "dotnet $dotnet_version ($dotnet_path)"
 
     return 0

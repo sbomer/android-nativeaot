@@ -6,7 +6,7 @@ This guide covers installing .NET SDK with NativeAOT support for Android.
 
 <!-- step: dotnet-install -->
 ```bash
-curl -sSL https://dot.net/v1/dotnet-install.sh | bash -s -- --channel 10.0
+curl -sSL https://dot.net/v1/dotnet-install.sh | bash -s -- --version 10.0.102
 export DOTNET_ROOT="$HOME/.dotnet"
 export PATH="$PATH:$DOTNET_ROOT:$DOTNET_ROOT/tools"
 ```
@@ -24,12 +24,12 @@ dotnet workload install android
 
 ```text
 $ dotnet --version
-10.0.x
+10.0.102
 
 $ dotnet workload list
 Installed Workload Id    Manifest Version    Installation Source
 ----------------------------------------------------------------------
-android                  ...                 SDK 10.0.x
+android                  ...                 SDK 10.0.100
 ```
 
 ## NativeAOT Configuration
