@@ -103,12 +103,9 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-# Force mode clears env file (skip functions check actual state, not markers)
-if [[ "$FORCE" == "true" ]]; then
-    rm -f "$ENV_FILE"
-fi
-
+# Always start with fresh env file (prevents stale exports from previous runs)
 mkdir -p "$ARTIFACTS_DIR"
+rm -f "$ENV_FILE"
 touch "$ENV_FILE"
 
 # Source skip functions (provides skip_<step> functions)
