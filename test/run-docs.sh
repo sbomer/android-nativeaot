@@ -280,6 +280,14 @@ run_step() {
     local doc="${STEP_DOC[$step]}"
     local skip_func="skip_${step//-/_}"  # Convert hyphens to underscores
 
+    # Always extract export lines to env file (even if step is skipped)
+    # This ensures env vars from preamble blocks are available to later steps
+    while IFS= read -r line; do
+        if [[ "$line" =~ ^export\ +([A-Za-z_][A-Za-z0-9_]*)= ]]; then
+            echo "$line" >> "$ENV_FILE"
+        fi
+    done <<< "$code"
+
     # Check if skip function exists
     if declare -f "$skip_func" > /dev/null; then
         # Skip function exists - use it to validate state
@@ -313,13 +321,6 @@ run_step() {
     echo -e "${GRAY}────────────────────────────────────────${NC}"
     echo -e "${GRAY}${code}${NC}"
     echo -e "${GRAY}────────────────────────────────────────${NC}"
-
-    # Extract export lines and save to env file
-    while IFS= read -r line; do
-        if [[ "$line" =~ ^export\ +([A-Za-z_][A-Za-z0-9_]*)= ]]; then
-            echo "$line" >> "$ENV_FILE"
-        fi
-    done <<< "$code"
 
     # Run in subshell with env sourced
     if (
