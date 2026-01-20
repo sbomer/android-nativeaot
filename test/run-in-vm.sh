@@ -7,7 +7,6 @@ set -euo pipefail
 #   ./test/run-in-vm.sh          # Incremental (reuse VM if valid)
 #   ./test/run-in-vm.sh --force  # Fresh VM, run all steps
 #   ./test/run-in-vm.sh --list   # Show all steps
-#   ./test/run-in-vm.sh --keep   # Keep VM running after tests
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(dirname "$SCRIPT_DIR")"
@@ -66,21 +65,18 @@ show_check_log() {
 # Parse arguments
 FORCE=false
 LIST_ONLY=false
-KEEP_VM=false
 INNER_ARGS=()
 
 while [[ $# -gt 0 ]]; do
     case $1 in
         --force)  FORCE=true; INNER_ARGS+=("--force"); shift ;;
         --list)   LIST_ONLY=true; INNER_ARGS+=("--list"); shift ;;
-        --keep)   KEEP_VM=true; shift ;;
         --help|-h)
             echo "Usage: $0 [options]"
             echo ""
             echo "Options:"
             echo "  --force   Fresh VM and re-run all steps"
             echo "  --list    List all steps without running"
-            echo "  --keep    Keep VM running after tests (default: stop)"
             echo "  --help    Show this help"
             exit 0
             ;;
@@ -343,18 +339,7 @@ main() {
         TEST_END=$(date +%s)
         echo ""
         log_ok "All tests passed! ($((TEST_END - TEST_START))s)"
-
-        if [[ "$KEEP_VM" == "true" ]]; then
-            echo -e "${GRAY}[INFO]${NC} VM kept running. SSH: ssh -p $VM_SSH_PORT ubuntu@localhost"
-        else
-            # Stop emulator inside VM before shutdown (clean state for next run)
-            ssh "${SSH_OPTS[@]}" -p "$VM_SSH_PORT" ubuntu@localhost \
-                "cd ~/android-nativeaot && ./test/stop-emulator.sh" 2>/dev/null || true
-
-            echo -e "${GRAY}[INFO]${NC} Stopping VM..."
-            $VIRSH shutdown "$VM_NAME" 2>/dev/null || true
-            echo -e "${GRAY}[INFO]${NC} VM stopped. Disk preserved for fast restart."
-        fi
+        echo -e "${GRAY}[INFO]${NC} VM kept running. SSH: ssh -p $VM_SSH_PORT ubuntu@localhost"
         exit 0
     else
         echo ""

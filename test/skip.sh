@@ -178,8 +178,11 @@ skip_emulator_setup() {
 
 # Emulator running and responsive
 skip_emulator_start() {
+    local adb="$ANDROID_HOME/platform-tools/adb"
+    [[ -x "$adb" ]] || { log_check_fail "adb not found at $adb"; return 1; }
+
     # Check if emulator-5554 is in adb devices
-    adb devices 2>/dev/null | grep -q "emulator-5554" || {
+    "$adb" devices 2>/dev/null | grep -q "emulator-5554" || {
         log_check_fail "emulator-5554 not in 'adb devices'"
         return 1
     }
@@ -187,7 +190,7 @@ skip_emulator_start() {
 
     # Check if emulator has finished booting
     local boot_completed
-    boot_completed=$(adb -s emulator-5554 shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')
+    boot_completed=$("$adb" -s emulator-5554 shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')
     [[ "$boot_completed" == "1" ]] || {
         log_check_fail "emulator not fully booted (sys.boot_completed=$boot_completed)"
         return 1
