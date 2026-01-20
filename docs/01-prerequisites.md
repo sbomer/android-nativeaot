@@ -36,7 +36,8 @@ openjdk version "17.0.x" ...
 
 <!-- step: java-home -->
 ```bash
-export JAVA_HOME="/usr/lib/jvm/java-17-openjdk-amd64"
+# Find Java home from the java command (works across distros)
+export JAVA_HOME=$(dirname $(dirname $(readlink -f $(which java))))
 ```
 
 ## Next Steps
