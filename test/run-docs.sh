@@ -282,9 +282,10 @@ run_step() {
 
     # Always extract export lines to env file (even if step is skipped)
     # This ensures env vars from preamble blocks are available to later steps
+    # Only add if not already present (avoid duplicates on incremental runs)
     while IFS= read -r line; do
         if [[ "$line" =~ ^export\ +([A-Za-z_][A-Za-z0-9_]*)= ]]; then
-            echo "$line" >> "$ENV_FILE"
+            grep -qxF "$line" "$ENV_FILE" 2>/dev/null || echo "$line" >> "$ENV_FILE"
         fi
     done <<< "$code"
 
