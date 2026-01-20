@@ -102,16 +102,62 @@ fi
 echo "Emulator ready"
 ```
 
-Install and launch the app:
+Install the app:
 
-<!-- step: run-app -->
+<!-- step: install-app -->
 ```bash
 cd sample
 APK=$(find bin/Release -name "*-Signed.apk" -type f | head -1)
 adb install -r "$APK"
-adb shell am start -n com.example.nativeaot/.MainActivity
-sleep 2
-adb shell dumpsys activity activities | grep -A5 com.example.nativeaot
+```
+
+Launch and verify the app:
+
+<!-- step: run-app -->
+```bash
+cd sample
+PACKAGE="com.example.nativeaot"
+SUCCESS_TAG="NativeAotSample"
+SUCCESS_MSG="APP_STARTED_SUCCESSFULLY"
+
+# Get the actual activity name from the APK (NativeAOT uses hashed class names)
+APK=$(find bin/Release -name "*-Signed.apk" -type f | head -1)
+AAPT=$(find "$ANDROID_HOME/build-tools" -name "aapt" | sort -V | tail -1)
+ACTIVITY=$("$AAPT" dump badging "$APK" 2>/dev/null | grep "launchable-activity" | sed "s/.*name='\([^']*\)'.*/\1/")
+if [[ -z "$ACTIVITY" ]]; then
+    echo "FAILED: Could not determine activity name from APK"
+    exit 1
+fi
+echo "Launching activity: $ACTIVITY"
+
+# Clear logcat so we only see messages from this launch
+adb logcat -c
+
+# Start activity
+adb shell am start -n "$PACKAGE/$ACTIVITY"
+
+# Wait for success message or crash (up to 15 seconds)
+echo "Waiting for app to start..."
+for i in $(seq 1 15); do
+    sleep 1
+    
+    # Check for success message in logcat
+    if adb logcat -d -s "$SUCCESS_TAG:I" 2>/dev/null | grep -q "$SUCCESS_MSG"; then
+        echo "SUCCESS: App started successfully"
+        exit 0
+    fi
+    
+    # Check for crash
+    if adb logcat -d 2>/dev/null | grep -q "Process $PACKAGE.*has died"; then
+        echo "FAILED: App crashed"
+        adb logcat -d | grep -E "FATAL|F DEBUG|AndroidRuntime" | head -20
+        exit 1
+    fi
+done
+
+echo "FAILED: Timeout waiting for app to start"
+adb logcat -d | grep -E "$SUCCESS_TAG|FATAL|AndroidRuntime" | tail -20
+exit 1
 ```
 
 ## Troubleshooting

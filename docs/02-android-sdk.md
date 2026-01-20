@@ -13,7 +13,6 @@ NativeAOT for Android requires:
 
 First, define where the SDK will be installed:
 
-<!-- step: sdk-env -->
 ```bash
 export ANDROID_HOME="$HOME/android-sdk"
 export ANDROID_SDK_ROOT="$ANDROID_HOME"
@@ -55,7 +54,6 @@ sdkmanager --install \
 
 ## Set NDK Environment Variable
 
-<!-- step: ndk-env -->
 ```bash
 export ANDROID_NDK_HOME="$ANDROID_HOME/ndk/27.2.12479018"
 ```

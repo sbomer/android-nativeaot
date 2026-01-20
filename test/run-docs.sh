@@ -8,14 +8,12 @@ set -euo pipefail
 #   ./test/run-docs.sh --force                   # Re-run all steps
 #   ./test/run-docs.sh --list                    # Show all steps
 #   ./test/run-docs.sh --local-android=/path     # Use local dotnet/android build
-#   ./test/run-docs.sh --skip=step1,step2        # Skip specific steps
 #   ./test/run-docs.sh --env-file=/path          # Source additional environment setup
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(dirname "$SCRIPT_DIR")"
 DOCS_DIR="$REPO_ROOT/docs"
 ARTIFACTS_DIR="$REPO_ROOT/artifacts"
-MARKER_DIR="$ARTIFACTS_DIR/step-markers"
 ENV_FILE="$ARTIFACTS_DIR/env"
 
 # Colors
@@ -32,11 +30,35 @@ log_skip()    { echo -e "${GRAY}[SKIP]${NC} $1"; }
 log_error()   { echo -e "${RED}[FAIL]${NC} $1"; }
 log_run()     { echo -e "${YELLOW}[RUN]${NC} $1"; }
 
+# Logging for skip checks (used by skip.sh functions)
+# These are captured and only shown on failure or in verbose mode
+SKIP_CHECK_LOG=""
+SKIP_CHECK_FAILED=""
+
+log_check_ok() {
+    SKIP_CHECK_LOG+="        ${GREEN}✓${NC} $1"$'\n'
+}
+
+log_check_fail() {
+    SKIP_CHECK_LOG+="        ${RED}✗${NC} $1"$'\n'
+    SKIP_CHECK_FAILED="true"
+}
+
+reset_check_log() {
+    SKIP_CHECK_LOG=""
+    SKIP_CHECK_FAILED=""
+}
+
+show_check_log() {
+    if [[ -n "$SKIP_CHECK_LOG" ]]; then
+        echo -en "$SKIP_CHECK_LOG"
+    fi
+}
+
 # Parse arguments
 FORCE=false
 LIST_ONLY=false
 LOCAL_ANDROID_REPO=""
-SKIP_STEPS=()
 EXTRA_ENV_FILE=""
 
 while [[ $# -gt 0 ]]; do
@@ -51,16 +73,6 @@ while [[ $# -gt 0 ]]; do
             LOCAL_ANDROID_REPO="$2"
             shift 2
             ;;
-        --skip=*)
-            IFS=',' read -ra steps <<< "${1#*=}"
-            SKIP_STEPS+=("${steps[@]}")
-            shift
-            ;;
-        --skip)
-            IFS=',' read -ra steps <<< "$2"
-            SKIP_STEPS+=("${steps[@]}")
-            shift 2
-            ;;
         --env-file=*)
             EXTRA_ENV_FILE="${1#*=}"
             shift
@@ -73,10 +85,9 @@ while [[ $# -gt 0 ]]; do
             echo "Usage: $0 [options]"
             echo ""
             echo "Options:"
-            echo "  --force                 Re-run all steps (clears markers first)"
+            echo "  --force                 Re-run all steps (ignore skip checks)"
             echo "  --list                  List all steps without running"
             echo "  --local-android=PATH    Use local dotnet/android build instead of installed workload"
-            echo "  --skip=STEPS            Comma-separated list of steps to skip"
             echo "  --env-file=PATH         Source additional environment variables from file"
             echo "  --help                  Show this help"
             exit 0
@@ -88,14 +99,16 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-# Force mode clears markers and env first
+# Force mode clears env file (skip functions check actual state, not markers)
 if [[ "$FORCE" == "true" ]]; then
-    rm -rf "$MARKER_DIR"
     rm -f "$ENV_FILE"
 fi
 
-mkdir -p "$MARKER_DIR"
+mkdir -p "$ARTIFACTS_DIR"
 touch "$ENV_FILE"
+
+# Source skip functions (provides skip_<step> functions)
+source "$SCRIPT_DIR/skip.sh"
 
 # Include extra environment file if specified
 if [[ -n "$EXTRA_ENV_FILE" ]]; then
@@ -131,23 +144,20 @@ if [[ -n "$LOCAL_ANDROID_REPO" ]]; then
     LOCAL_DOTNET_DIR="$LOCAL_ANDROID_REPO/bin/$LOCAL_CONFIG/dotnet"
     LOCAL_LIB_DIR="$LOCAL_ANDROID_REPO/bin/$LOCAL_CONFIG/lib"
 
-    log_info "Using local Android workload from: $LOCAL_ANDROID_REPO ($LOCAL_CONFIG)"
-
     # Set environment variables for local workload (matching dotnet-local.sh)
     {
         echo "export PATH=\"$LOCAL_DOTNET_DIR:\$PATH\""
         echo "export DOTNETSDK_WORKLOAD_MANIFEST_ROOTS=\"$LOCAL_LIB_DIR/sdk-manifests\""
         echo "export DOTNETSDK_WORKLOAD_PACK_ROOTS=\"$LOCAL_LIB_DIR\""
     } >> "$ENV_FILE"
-
-    # Skip dotnet-install and dotnet-workload since the local build provides both
-    SKIP_STEPS+=("dotnet-install" "dotnet-workload")
-
-    log_info "Skipping steps: ${SKIP_STEPS[*]}"
 fi
 
 # Extract steps from all docs using a temp directory approach
 # This avoids delimiter issues with code containing special characters
+#
+# Unmarked bash blocks (no step marker) are accumulated as "preamble" and
+# prepended to the next real step. This allows env var exports to be in
+# separate code blocks in docs without being separate steps.
 extract_steps() {
     local temp_dir
     temp_dir=$(mktemp -d)
@@ -161,6 +171,7 @@ extract_steps() {
         local current_step=""
         local in_bash_block=false
         local code_buffer=""
+        local preamble=""  # Accumulates unmarked code blocks
 
         while IFS= read -r line || [[ -n "$line" ]]; do
             # Check for step marker
@@ -170,7 +181,7 @@ extract_steps() {
             fi
 
             # Check for bash block start
-            if [[ "$line" == '```bash' && -n "$current_step" ]]; then
+            if [[ "$line" == '```bash' ]]; then
                 in_bash_block=true
                 code_buffer=""
                 continue
@@ -179,12 +190,27 @@ extract_steps() {
             # Check for block end
             if [[ "$line" == '```' && "$in_bash_block" == "true" ]]; then
                 in_bash_block=false
-                # Write step info to temp files
-                printf '%s\n' "$current_step" > "$temp_dir/${step_index}.step"
-                printf '%s\n' "$(basename "$doc")" > "$temp_dir/${step_index}.doc"
-                printf '%s\n' "$code_buffer" > "$temp_dir/${step_index}.code"
-                ((step_index++))
-                current_step=""
+
+                if [[ -n "$current_step" ]]; then
+                    # This is a real step - prepend any accumulated preamble
+                    if [[ -n "$preamble" ]]; then
+                        code_buffer="${preamble}"$'\n'"${code_buffer}"
+                        preamble=""
+                    fi
+                    # Write step info to temp files
+                    printf '%s\n' "$current_step" > "$temp_dir/${step_index}.step"
+                    printf '%s\n' "$(basename "$doc")" > "$temp_dir/${step_index}.doc"
+                    printf '%s\n' "$code_buffer" > "$temp_dir/${step_index}.code"
+                    ((step_index++))
+                    current_step=""
+                else
+                    # Unmarked block - accumulate as preamble for next step
+                    if [[ -n "$preamble" ]]; then
+                        preamble="${preamble}"$'\n'"${code_buffer}"
+                    else
+                        preamble="${code_buffer}"
+                    fi
+                fi
                 continue
             fi
 
@@ -228,31 +254,19 @@ while IFS= read -r stepfile; do
 done < <(find "$TEMP_STEPS_DIR" -name "*.step" -print0 | sort -zV | xargs -0 -n1 echo)
 shopt -u nullglob
 
-# Helper to check if step should be skipped (local android mode)
-is_skipped_step() {
-    local step="$1"
-    for skip in "${SKIP_STEPS[@]}"; do
-        if [[ "$step" == "$skip" ]]; then
-            return 0
-        fi
-    done
-    return 1
-}
-
 # List mode
 if [[ "$LIST_ONLY" == "true" ]]; then
     echo "Available steps:"
-    if [[ -n "$LOCAL_ANDROID_REPO" ]]; then
-        echo -e "${GRAY}(Using local android from: $LOCAL_ANDROID_REPO)${NC}"
-    fi
     echo ""
+
     for step in "${STEPS[@]}"; do
-        marker="$MARKER_DIR/$step.done"
-        if is_skipped_step "$step"; then
-            echo -e "  ${GRAY}⊘${NC} $step (${STEP_DOC[$step]}) ${GRAY}[skipped: local android]${NC}"
-        elif [[ -f "$marker" ]]; then
-            echo -e "  ${GREEN}✓${NC} $step (${STEP_DOC[$step]})"
+        skip_func="skip_${step//-/_}"
+
+        if ! declare -f "$skip_func" > /dev/null; then
+            # No skip function = always runs
+            echo -e "  ${YELLOW}▶${NC} $step (${STEP_DOC[$step]}) ${GRAY}[always runs]${NC}"
         else
+            # Has skip function = state check
             echo -e "  ○ $step (${STEP_DOC[$step]})"
         fi
     done
@@ -264,19 +278,34 @@ run_step() {
     local step="$1"
     local code="${STEP_CODE[$step]}"
     local doc="${STEP_DOC[$step]}"
-    local marker="$MARKER_DIR/$step.done"
+    local skip_func="skip_${step//-/_}"  # Convert hyphens to underscores
 
-    # Check if step should be skipped (local android mode)
-    if is_skipped_step "$step"; then
-        log_skip "$step ($doc) [local android mode]"
-        return 0
-    fi
+    # Check if skip function exists
+    if declare -f "$skip_func" > /dev/null; then
+        # Skip function exists - use it to validate state
+        if [[ "$FORCE" != "true" ]]; then
+            reset_check_log
 
-    # Check if should skip (already completed)
-    if [[ -f "$marker" ]]; then
-        log_skip "$step ($doc)"
-        return 0
+            # Source env and run skip check
+            set +u
+            source "$ENV_FILE"
+            set -u
+
+            if "$skip_func"; then
+                # Validation passed - state already achieved
+                echo -e "${GRAY}[CHECK]${NC} $step"
+                show_check_log
+                log_skip "$step ($doc)"
+                LAST_STEP_ACTION="skipped"
+                return 0
+            else
+                # Validation failed - need to run step
+                echo -e "${GRAY}[CHECK]${NC} $step"
+                show_check_log
+            fi
+        fi
     fi
+    # No skip function = always run (action step), fall through
 
     log_run "$step ($doc)"
 
@@ -298,14 +327,35 @@ run_step() {
         source "$ENV_FILE"
         set -u
         cd "$REPO_ROOT"
-        set -x
         eval "$code"
     ); then
-        touch "$marker"
-        log_success "$step"
-        return 0
+        # Step succeeded - validate postcondition if skip function exists
+        if declare -f "$skip_func" > /dev/null; then
+            reset_check_log
+            # Source env for postcondition check
+            set +u
+            source "$ENV_FILE"
+            set -u
+
+            if "$skip_func"; then
+                log_success "$step [validated]"
+                LAST_STEP_ACTION="ran"
+                return 0
+            else
+                echo -e "${RED}[VALIDATE]${NC} $step - postcondition failed:"
+                show_check_log
+                log_error "$step (ran but postcondition not satisfied)"
+                LAST_STEP_ACTION="failed"
+                return 1
+            fi
+        else
+            log_success "$step"
+            LAST_STEP_ACTION="ran"
+            return 0
+        fi
     else
         log_error "$step"
+        LAST_STEP_ACTION="failed"
         return 1
     fi
 }
@@ -314,13 +364,11 @@ run_step() {
 steps_run=0
 steps_skipped=0
 steps_failed=0
-
-log_info "Running documentation steps..."
-echo ""
+LAST_STEP_ACTION=""  # Set by run_step: "ran", "skipped", or "failed"
 
 for step in "${STEPS[@]}"; do
     if run_step "$step"; then
-        if [[ -f "$MARKER_DIR/$step.done" ]]; then
+        if [[ "$LAST_STEP_ACTION" == "ran" ]]; then
             ((steps_run++)) || true
         else
             ((steps_skipped++)) || true
@@ -333,7 +381,7 @@ for step in "${STEPS[@]}"; do
 done
 
 echo ""
-log_info "Summary: $steps_run completed, $steps_skipped skipped, $steps_failed failed"
+log_info "Summary: $steps_run ran, $steps_skipped skipped, $steps_failed failed"
 
 if [[ $steps_failed -gt 0 ]]; then
     exit 1

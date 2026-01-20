@@ -48,5 +48,7 @@ public class MainActivity : Activity
         layout.AddView(button);
 
         SetContentView(layout);
+
+        Android.Util.Log.Info("NativeAotSample", "APP_STARTED_SUCCESSFULLY");
     }
 }
