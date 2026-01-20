@@ -111,17 +111,37 @@ skip_dotnet_install() {
 
 # Android workload installed
 skip_dotnet_workload() {
+    local dotnet_path
+    # Use DOTNET_ROOT if available
+    if [[ -n "${DOTNET_ROOT:-}" && -x "$DOTNET_ROOT/dotnet" ]]; then
+        dotnet_path="$DOTNET_ROOT/dotnet"
+    else
+        dotnet_path=$(command -v dotnet) || { log_check_fail "dotnet not found"; return 1; }
+    fi
+
     local workload_info
-    workload_info=$(dotnet workload list 2>/dev/null | grep android) || {
+    workload_info=$("$dotnet_path" workload list 2>/dev/null | grep android) || {
         log_check_fail "android workload not found in 'dotnet workload list'"
         return 1
     }
-    local workload_version sdk_version dotnet_dir manifest_path
+
+    # Extract SDK feature band from workload list (e.g., "SDK 10.0.100" -> "10.0.100")
+    local workload_sdk_band
+    workload_sdk_band=$(echo "$workload_info" | grep -oE 'SDK [0-9]+\.[0-9]+\.[0-9]+' | awk '{print $2}')
+
+    # Get current SDK version and extract feature band (e.g., "10.0.102" -> "10.0.100")
+    local sdk_version sdk_feature_band
+    sdk_version=$("$dotnet_path" --version 2>/dev/null)
+    sdk_feature_band=$(echo "$sdk_version" | sed -E 's/([0-9]+\.[0-9]+\.)[0-9]+/\1100/')
+
+    if [[ "$workload_sdk_band" != "$sdk_feature_band" ]]; then
+        log_check_fail "workload SDK band $workload_sdk_band != current SDK band $sdk_feature_band"
+        return 1
+    fi
+
+    local workload_version
     workload_version=$(echo "$workload_info" | awk '{print $2}')
-    sdk_version=$(echo "$workload_info" | awk '{print $4}')  # "SDK x.y.z" -> 4th field
-    dotnet_dir=$(dirname "$(command -v dotnet)")
-    manifest_path="$dotnet_dir/sdk-manifests/$sdk_version/microsoft.net.sdk.android"
-    log_check_ok "android workload $workload_version ($manifest_path)"
+    log_check_ok "android workload $workload_version (SDK $workload_sdk_band)"
 
     return 0
 }
