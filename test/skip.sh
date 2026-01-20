@@ -111,12 +111,14 @@ skip_dotnet_install() {
 
 # Android workload installed
 skip_dotnet_workload() {
-    local dotnet_path
+    local dotnet_path dotnet_root
     # Use DOTNET_ROOT if available
     if [[ -n "${DOTNET_ROOT:-}" && -x "$DOTNET_ROOT/dotnet" ]]; then
         dotnet_path="$DOTNET_ROOT/dotnet"
+        dotnet_root="$DOTNET_ROOT"
     else
         dotnet_path=$(command -v dotnet) || { log_check_fail "dotnet not found"; return 1; }
+        dotnet_root=$(dirname "$(dirname "$dotnet_path")")
     fi
 
     local workload_info
@@ -139,9 +141,17 @@ skip_dotnet_workload() {
         return 1
     fi
 
+    # Find the workload pack path
+    local workload_path
+    workload_path=$(find "$dotnet_root/packs" -maxdepth 1 -type d -name "Microsoft.Android.Sdk.*" 2>/dev/null | head -1)
+    [[ -n "$workload_path" ]] || {
+        log_check_fail "workload pack not found in $dotnet_root/packs"
+        return 1
+    }
+
     local workload_version
     workload_version=$(echo "$workload_info" | awk '{print $2}')
-    log_check_ok "android workload $workload_version (SDK $workload_sdk_band)"
+    log_check_ok "android workload $workload_version (SDK $workload_sdk_band) ($workload_path)"
 
     return 0
 }
