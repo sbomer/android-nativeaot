@@ -301,6 +301,8 @@ run_docs_in_vm() {
     rsync -az -e "ssh ${SSH_OPTS[*]} -p $VM_SSH_PORT" \
         --exclude='.git' \
         --exclude='artifacts' \
+        --exclude='bin' \
+        --exclude='obj' \
         "$REPO_ROOT/" ubuntu@localhost:~/android-nativeaot/
 
     echo ""
