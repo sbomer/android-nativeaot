@@ -9,7 +9,7 @@ Navigate to the sample directory and publish:
 <!-- step: build -->
 ```bash
 cd sample
-dotnet publish -c Release
+dotnet publish -c Release -v detailed 2>&1 | tee build.log
 ```
 
 This will:
