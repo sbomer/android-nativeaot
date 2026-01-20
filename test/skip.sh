@@ -141,11 +141,17 @@ skip_dotnet_workload() {
         return 1
     fi
 
-    # Find the workload pack path
-    local workload_path
-    workload_path=$(find "$dotnet_root/packs" -maxdepth 1 -type d -name "Microsoft.Android.Sdk.*" 2>/dev/null | head -1)
+    # Find the workload pack path - check DOTNETSDK_WORKLOAD_PACK_ROOTS first (local build),
+    # then fall back to standard dotnet packs location
+    local workload_path pack_roots
+    if [[ -n "${DOTNETSDK_WORKLOAD_PACK_ROOTS:-}" ]]; then
+        pack_roots="$DOTNETSDK_WORKLOAD_PACK_ROOTS"
+    else
+        pack_roots="$dotnet_root/packs"
+    fi
+    workload_path=$(find "$pack_roots" -maxdepth 2 -type d -name "Microsoft.Android.Sdk.*" 2>/dev/null | head -1)
     [[ -n "$workload_path" ]] || {
-        log_check_fail "workload pack not found in $dotnet_root/packs"
+        log_check_fail "workload pack not found in $pack_roots"
         return 1
     }
 
